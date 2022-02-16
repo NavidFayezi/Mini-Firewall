@@ -6,6 +6,21 @@
 #include <linux/netfilter.h>        /* for NF_ACCEPT */
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
+// data + 12 -> first octet of source ip address
+// data + (length *4)-1 -> first of UDP(first two bytes are src port)
+
+int get_ip_header_length(unsigned char data){
+    hl = data & 0x0f;
+    return hl * 4;    // hl is the number of 32 bit words(4 bytes)
+}
+
+void print_bin(unsigned char value)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        printf("%d", !!((value << i) & 0x80));
+    }
+}
 
 /* returns packet id */
 static u_int32_t print_pkt (struct nfq_data *tb)
@@ -16,8 +31,15 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     u_int32_t mark,ifi;
     int ret;
     char *data;
+    int i;
+    unsigned short * src_port, *dst_port;
+    unsigned int first_int;
+    unsigned char first_char;
+    unsigned short first_short;
+
 
     ph = nfq_get_msg_packet_hdr(tb);
+
     if (ph) {
         id = ntohl(ph->packet_id);
         printf("hw_protocol=0x%04x hook=%u id=%u ",
@@ -57,6 +79,11 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     if (ret >= 0)
         printf("payload_len=%d ", ret);
 
+    printf("First char: %hhu\nFirst short: %hu\nFirst int: %hd\n", data, data, data);
+    for(i = 0; i < ret; i++){
+        printf("\nPayload: %d: %c bin:", i, data[i]);
+        print_bin(data[i]);
+    }
     fputc('\n', stdout);
 
     return id;
@@ -81,6 +108,12 @@ int main(int argc, char **argv)
     char buf[4096] __attribute__ ((aligned));
 
     printf("opening library handle\n");
+    /* This function obtains a netfilter queue connection handle.
+       When you are finished with the handle returned by this function,
+       you should destroy it by calling nfq_close(). A new netlink connection
+       is obtained internally and associated with the queue connection handle returned.
+       Returns a pointer to a new queue handle or NULL on failure.
+    */
     h = nfq_open();
     if (!h) {
         fprintf(stderr, "error during nfq_open()\n");
@@ -88,38 +121,89 @@ int main(int argc, char **argv)
     }
 
     printf("unbinding existing nf_queue handler for AF_INET (if any)\n");
+    /* Bind a nfqueue handler to a given protocol family.
+       First parameter: Netfilter queue connection handle
+       obtained via call to nfq_open().
+       Second parameter: Protocol family. IPv4
+    */
+    /* obsolete
     if (nfq_unbind_pf(h, AF_INET) < 0) {
-        fprintf(stderr, "error during nfq_unbind_pf()\n");
-        exit(1);
+          fprintf(stderr, "error during nfq_unbind_pf()\n");
+          exit(1);
     }
 
     printf("binding nfnetlink_queue as nf_queue handler for AF_INET\n");
     if (nfq_bind_pf(h, AF_INET) < 0) {
-        fprintf(stderr, "error during nfq_bind_pf()\n");
-        exit(1);
-    }
+          fprintf(stderr, "error during nfq_bind_pf()\n");
+          exit(1);
+    }*/
 
     printf("binding this socket to queue '0'\n");
+    /* create a new queue handle and return it.
+       Parameters: Netfilter queue connection handle obtained
+       via call tonfq_open().
+       The number of the queue to bind to.
+       Callback function to call for each queued packet.
+       Custom data to pass to the callback function.
+       Returns a nfq_q_handle pointing to the newly created queue.
+
+    */
     qh = nfq_create_queue(h,  0, &cb, NULL);
     if (!qh) {
         fprintf(stderr, "error during nfq_create_queue()\n");
         exit(1);
     }
-
+    /* set the amount of packet data that nfqueue copies to userspace
+       Parameters:
+       Netfilter queue handle obtained by call to nfq_create_queue().
+       the part of the packet that we are interested in
+       size of the packet that we want to get
+       Sets the amount of data to be copied to userspace for each packet queued to the given queue.
+       NFQNL_COPY_NONE - noop, do not use it
+       NFQNL_COPY_META - copy only packet metadata
+       NFQNL_COPY_PACKET - copy entire packet
+       Returns:
+       -1 on error; >=0 otherwise.
+    */
     printf("setting copy_packet mode\n");
     if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
         fprintf(stderr, "can't set packet_copy mode\n");
         exit(1);
     }
-
+    /* get the file descriptor associated with the nfqueue handler
+       Parameters:
+       Netfilter queue connection handle obtained via call to nfq_open().
+       Returns:
+       a file descriptor for the netlink connection associated with
+       the given queue connection handle. The file descriptor can
+       then be used for receiving the queued packets for processing.
+       This function returns a file descriptor that can be used for
+       communication over the netlink connection associated with the given queue connection handl
+    */
     fd = nfq_fd(h);
 
     while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
         printf("pkt received\n");
+        /* handle a packet received from the nfqueue subsystem
+           Parameters:
+           Netfilter queue connection handle obtained via call to nfq_open()
+           data to pass to the callback
+           length of packet data in buffer
+           Triggers an associated callback for the given packet received from the queue.
+           Packets can be read from the queue using nfq_fd() and recv(). See example code for nfq_fd().
+           Returns:
+           0 on success, non-zero on failure
+        */
         nfq_handle_packet(h, buf, rv);
     }
 
     printf("unbinding from queue 0\n");
+    /* destroy a queue handle
+       Parameters:
+       queue handle that we want to destroy created via nfq_create_queue
+       Removes the binding for the specified queue handle.
+       This call also unbind from the nfqueue handler, so you don't have to call nfq_unbind_pf
+    */
     nfq_destroy_queue(qh);
 
 #ifdef INSANE
@@ -130,7 +214,9 @@ int main(int argc, char **argv)
 #endif
 
     printf("closing library handle\n");
-    nfq_close(h);
+    nfq_close(h);     // close nfque handler and free its associated resources.
+    // return zero on success, non-zero on failure.
 
     exit(0);
 }
+
