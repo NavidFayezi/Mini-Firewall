@@ -8,6 +8,8 @@
 #include <libnetfilter_queue/libnetfilter_queue.h>
 // data + 12 -> first octet of source ip address
 // data + (lenght*4) -> first of UDP(first two bytes are src port)
+int *j_iter;
+int *j_input;
 
 struct ip_address{
     uint8_t octet1, octet2, octet3, octet4;
@@ -40,7 +42,7 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     uint16_t *src_port;
     struct ip_address ip;
 
-
+    (*j_iter)++;
     ph = nfq_get_msg_packet_hdr(tb);
 
     /*if (ph) {
@@ -122,6 +124,11 @@ int main(int argc, char **argv)
     int rv;
     char buf[4096] __attribute__ ((aligned));
 
+    j_iter = malloc(sizeof(int));
+    j_input = malloc(sizeof(int));
+    *j_iter = 0;
+
+    system("./add_rule.sh");
     printf("opening library handle\n");
     /* This function obtains a netfilter queue connection handle.
        When you are finished with the handle returned by this function,
@@ -210,6 +217,9 @@ int main(int argc, char **argv)
            0 on success, non-zero on failure
         */
         nfq_handle_packet(h, buf, rv);
+        /*if (*j_iter >= *j_input)
+              break;*/
+
     }
 
     printf("unbinding from queue 0\n");
@@ -231,7 +241,8 @@ int main(int argc, char **argv)
     printf("closing library handle\n");
     nfq_close(h);     // close nfque handler and free its associated resources.
     // return zero on success, non-zero on failure.
-
+    system("./delete_rule.sh");
+    //printf("%d\n", *j_iter);
     exit(0);
 }
 
