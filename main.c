@@ -7,7 +7,7 @@
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
 // data + 12 -> first octet of source ip address
-// data + (lenght*4)-1 -> first of UDP(first two bytes are src port)
+// data + (lenght*4) -> first of UDP(first two bytes are src port)
 
 struct ip_address{
     uint8_t octet1, octet2, octet3, octet4;
@@ -80,8 +80,8 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
     */
     ret = nfq_get_payload(tb, &data);
-    if (ret >= 0)
-        printf("payload_len=%d ", ret);
+    //if (ret >= 0)
+    //printf("payload_len=%d ", ret);
 
     ip.octet1 = data[12];
     ip.octet2 = data[13];
@@ -89,16 +89,16 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     ip.octet4 = data[15];
     header_len = get_ip_header_lenght(data[0]);
     src_port = data + header_len * sizeof(char);
-    printf("\nlen: %u", header_len);
+    //printf("\nlen: %u", header_len);
     printf("\nIP: %u.%u.%u.%u\nSource Port: %u\n", ip.octet1, ip.octet2, ip.octet3, ip.octet4, ntohs(*src_port));
     //printf("First char: %hhu\nFirst short: %hu\nFirst int: %hd\n", data, data, data);
-    printf("New Packet \n");
+    /*printf("New Packet \n");
     for(i = 0; i < ret; i++){
 
-        if (i == 20 || i == 21){
-            print_bin(data[i]);
-            printf("\n");}
-    }
+          if (i == 20 || i == 21){
+                print_bin(data[i]);
+                printf("\n");}
+    }*/
     fputc('\n', stdout);
 
     return id;
@@ -109,7 +109,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
               struct nfq_data *nfa, void *data)
 {
     u_int32_t id = print_pkt(nfa);
-    printf("entering callback\n");
+    //printf("entering callback\n");
     return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 
@@ -198,7 +198,7 @@ int main(int argc, char **argv)
     fd = nfq_fd(h);
 
     while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
-        printf("pkt received\n");
+        //printf("pkt received\n");
         /* handle a packet received from the nfqueue subsystem
            Parameters:
            Netfilter queue connection handle obtained via call to nfq_open()
