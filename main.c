@@ -7,12 +7,16 @@
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
 // data + 12 -> first octet of source ip address
-// data + (length *4)-1 -> first of UDP(first two bytes are src port)
+// data + (lenght*4)-1 -> first of UDP(first two bytes are src port)
 
-int get_ip_header_length(unsigned char data){
-    hl = data & 0x0f;
-    return hl * 4;    // hl is the number of 32 bit words(4 bytes)
+struct ip_address{
+    uint8_t octet1, octet2, octet3, octet4;
+};
+uint8_t get_ip_header_lenght(unsigned char data){
+    uint8_t hl = data & 0x0f;
+    return hl << 2;    // hl is the number of 32 bit words(4 bytes)
 }
+
 
 void print_bin(unsigned char value)
 {
@@ -32,57 +36,68 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     int ret;
     char *data;
     int i;
-    unsigned short * src_port, *dst_port;
-    unsigned int first_int;
-    unsigned char first_char;
-    unsigned short first_short;
+    uint8_t header_len;
+    uint16_t *src_port;
+    struct ip_address ip;
 
 
     ph = nfq_get_msg_packet_hdr(tb);
 
-    if (ph) {
-        id = ntohl(ph->packet_id);
-        printf("hw_protocol=0x%04x hook=%u id=%u ",
-               ntohs(ph->hw_protocol), ph->hook, id);
+    /*if (ph) {
+          id = ntohl(ph->packet_id);
+          printf("hw_protocol=0x%04x hook=%u id=%u ",
+                ntohs(ph->hw_protocol), ph->hook, id);
     }
 
     hwph = nfq_get_packet_hw(tb);
     if (hwph) {
-        int i, hlen = ntohs(hwph->hw_addrlen);
+          int i, hlen = ntohs(hwph->hw_addrlen);
 
-        printf("hw_src_addr=");
-        for (i = 0; i < hlen-1; i++)
-            printf("%02x:", hwph->hw_addr[i]);
-        printf("%02x ", hwph->hw_addr[hlen-1]);
+          printf("hw_src_addr=");
+          for (i = 0; i < hlen-1; i++)
+                printf("%02x:", hwph->hw_addr[i]);
+          printf("%02x ", hwph->hw_addr[hlen-1]);
     }
 
     mark = nfq_get_nfmark(tb);
     if (mark)
-        printf("mark=%u ", mark);
+          printf("mark=%u ", mark);
 
     ifi = nfq_get_indev(tb);
     if (ifi)
-        printf("indev=%u ", ifi);
+          printf("indev=%u ", ifi);
 
     ifi = nfq_get_outdev(tb);
     if (ifi)
-        printf("outdev=%u ", ifi);
+          printf("outdev=%u ", ifi);
     ifi = nfq_get_physindev(tb);
     if (ifi)
-        printf("physindev=%u ", ifi);
+          printf("physindev=%u ", ifi);
 
     ifi = nfq_get_physoutdev(tb);
     if (ifi)
-        printf("physoutdev=%u ", ifi);
+          printf("physoutdev=%u ", ifi);
 
+    */
     ret = nfq_get_payload(tb, &data);
     if (ret >= 0)
         printf("payload_len=%d ", ret);
 
-    printf("First char: %hhu\nFirst short: %hu\nFirst int: %hd\n", data, data, data);
+    ip.octet1 = data[12];
+    ip.octet2 = data[13];
+    ip.octet3 = data[14];
+    ip.octet4 = data[15];
+    header_len = get_ip_header_lenght(data[0]);
+    src_port = data + header_len * sizeof(char);
+    printf("\nlen: %u", header_len);
+    printf("\nIP: %u.%u.%u.%u\nSource Port: %u\n", ip.octet1, ip.octet2, ip.octet3, ip.octet4, ntohs(*src_port));
+    //printf("First char: %hhu\nFirst short: %hu\nFirst int: %hd\n", data, data, data);
+    printf("New Packet \n");
     for(i = 0; i < ret; i++){
-        printf("\nPayload: %d: %c bin:", i, data[i]);
-        print_bin(data[i]);
+
+        if (i == 20 || i == 21){
+            print_bin(data[i]);
+            printf("\n");}
     }
     fputc('\n', stdout);
 
