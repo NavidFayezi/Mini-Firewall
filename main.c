@@ -129,14 +129,14 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     //if (ret >= 0)
     //printf("payload_len=%d ", ret);
 
-    ip.octet1 = data[12];
-    ip.octet2 = data[13];
-    ip.octet3 = data[14];
-    ip.octet4 = data[15];
+    ip.octets[0] = data[12];
+    ip.octets[1] = data[13];
+    ip.octets[2] = data[14];
+    ip.octets[3] = data[15];
     header_len = get_ip_header_lenght(data[0]);
     src_port = data + header_len * sizeof(char);
     //printf("\nlen: %u", header_len);
-    printf("\nIP: %u.%u.%u.%u\nSource Port: %u\n", ip.octet1, ip.octet2, ip.octet3, ip.octet4, ntohs(*src_port));
+    printf("\nIP: %u.%u.%u.%u\nSource Port: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], ntohs(*src_port));
     //printf("First char: %hhu\nFirst short: %hu\nFirst int: %hd\n", data, data, data);
     /*printf("New Packet \n");
     for(i = 0; i < ret; i++){
