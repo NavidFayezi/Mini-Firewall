@@ -13,8 +13,9 @@ int *j_iter;
 int *j_input;
 
 struct ip_address{
-    uint8_t octet1, octet2, octet3, octet4;
+    uint8_t octets [4];
 };
+
 uint8_t get_ip_header_length(unsigned char data){
     uint8_t hl = data & 0x0f;
     return hl << 2;    // hl is the number of 32 bit words(4 bytes)
@@ -43,6 +44,25 @@ char** ip_string_preprocess(char * ip_str){
     return octets;
 }
 
+struct ip_address* ip_string_to_struct(char ** ip_str){
+
+    int i, j, octet_len;
+    uint8_t temp;
+    struct ip_address *ip = malloc(sizeof(struct ip_address));
+
+    for (i = 0; i < 4; i++){
+        octet_len = strlen(ip_str[i]);
+        temp = 0;
+
+        for(j = 0; j < octet_len; j++){
+            temp = (temp * 10) + (ip_str[i][j] - '0');
+        }
+
+        ip->octets[i] = temp;
+    }
+
+    return ip;
+}
 
 void print_bin(unsigned char value)
 {
