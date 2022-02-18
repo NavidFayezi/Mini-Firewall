@@ -133,7 +133,7 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     ip.octets[1] = data[13];
     ip.octets[2] = data[14];
     ip.octets[3] = data[15];
-    header_len = get_ip_header_lenght(data[0]);
+    header_len = get_ip_header_length(data[0]);
     src_port = data + header_len * sizeof(char);
     //printf("\nlen: %u", header_len);
     printf("\nIP: %u.%u.%u.%u\nSource Port: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], ntohs(*src_port));
@@ -167,7 +167,12 @@ int main(int argc, char **argv)
     int fd;
     int rv;
     char buf[4096] __attribute__ ((aligned));
-
+    // command line arguments
+    char *ip_string = argv[1];
+    char *port_string = argv[2];
+    char *j_string = argv[3];
+    char *pattern = argv[4];
+    ///////
     j_iter = malloc(sizeof(int));
     j_input = malloc(sizeof(int));
     *j_iter = 0;
