@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <linux/types.h>
 #include <linux/netfilter.h>        /* for NF_ACCEPT */
+#include <string.h>
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
 // data + 12 -> first octet of source ip address
@@ -14,9 +15,32 @@ int *j_input;
 struct ip_address{
     uint8_t octet1, octet2, octet3, octet4;
 };
-uint8_t get_ip_header_lenght(unsigned char data){
+uint8_t get_ip_header_length(unsigned char data){
     uint8_t hl = data & 0x0f;
     return hl << 2;    // hl is the number of 32 bit words(4 bytes)
+}
+
+char** ip_string_preprocess(char * ip_str){
+    int i, j, len, pivot, octet_size;
+    len = strlen(ip_str);
+    char ** octets = malloc(sizeof(char*) * 4);
+    pivot = 0;
+    j = 0;
+    for (i = 0; i < len; i++){
+        if(ip_str[i] == '.'){
+            octet_size = i - pivot;
+            octets[j] = malloc(sizeof(char) * (octet_size + 1));
+            strncpy(octets[j], &ip_str[pivot], octet_size);
+            pivot = i + 1;
+            j++;
+        }
+    }
+    // last octet
+    octet_size = len - pivot;
+    octets[j] = malloc(sizeof(char) * (octet_size + 1));
+    strncpy(octets[j], &ip_str[pivot], octet_size);
+
+    return octets;
 }
 
 
@@ -245,4 +269,3 @@ int main(int argc, char **argv)
     //printf("%d\n", *j_iter);
     exit(0);
 }
-

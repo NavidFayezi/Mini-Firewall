@@ -21,6 +21,6 @@ Finally, run the program. Do not forget *sudo*.
 1. You might need to switch to the legacy mode if you get the following error while adding rules to *iptables*:  
 `iptables v1.8.7 (nf_tables):  RULE_APPEND failed (No such file or directory): rule in chain INPUT`  
 In this case, switch to the legacy mode using:  
-`update-alternatives --set iptables /usr/sbin/iptables-legacy`
+`update-alternatives --set iptables /usr/sbin/iptables-legacy`  
 and run the program again.
  2. If you kill the program before it executes *delete_rule.sh*, you will need to manually delete the rule that was added to *iptables* by *add_rule.sh*. 
