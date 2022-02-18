@@ -2,7 +2,7 @@
 In this assignment, I will be using the code snippet [here](https://www.netfilter.org/projects/libnetfilter_queue/doxygen/html/nfqnl__test_8c_source.html), which reads packets from the kernel queue and returns them after the processing is completed. The mini-firewall will inspect inbound UDP packets, and writes the information of the target packets to a file. Target packets are those whose **Source IP address** and **Source port** match the IP address and port number given by the user as inputs.
 
 ## Compile and run
-Make sure that *libnetfilter_queue*, *libnfnetlink*, and *libmnl* are installed and the kernel version is 3.6 or later.
+Make sure that *libnetfilter_queue*, *libnfnetlink*, and *libmnl* are installed and the kernel version is 3.6 or later.  
 `sudo apt install libnetfilter-queue-dev`  
 `sudo apt install libnfnetlink-dev`  
 `sudo apt install libmnl-dev`
