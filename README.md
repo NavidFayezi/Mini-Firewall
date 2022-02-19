@@ -14,8 +14,8 @@ Next, make the shell scripts executable.
 After that, Link the library while compiling *main.c*.  
 `gcc main.c -lnetfilter_queue -o output`
 
-Finally, run the program. Do not forget *sudo*.  
-`sudo ./output`
+Finally, run the program. Do not forget *sudo*. Give an IP address, a port number, a number in range of [0 - 65525] as the number of iterations, and a string. For example:  
+`sudo ./output 192.168.1.1 53 5 hello`
 
 ### Warning!
 1. You might need to switch to the legacy mode if you get the following error while adding rules to *iptables*:  
