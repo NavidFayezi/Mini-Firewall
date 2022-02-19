@@ -8,7 +8,8 @@
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
 // data + 12 -> first octet of source ip address
-// data + (lenght*4) -> first of UDP(first two bytes are src port)
+// data + (length*4) -> first of UDP(first two bytes are src port)
+// data + (length*4) + 8 -> first byte of UPD data
 int *j_iter;
 int *j_input;
 
@@ -44,21 +45,25 @@ char** ip_string_preprocess(char * ip_str){
     return octets;
 }
 
+uint16_t str_to_uint(char* str){
+    int j;
+    int len = strlen(str);
+    uint16_t temp = 0;
+
+    for(j = 0; j < len; j++){
+        temp = (temp * 10) + (str[j] - '0');
+    }
+    return temp;
+}
+
 struct ip_address* ip_string_to_struct(char ** ip_str){
 
-    int i, j, octet_len;
-    uint8_t temp;
+    int i;
+
     struct ip_address *ip = malloc(sizeof(struct ip_address));
 
     for (i = 0; i < 4; i++){
-        octet_len = strlen(ip_str[i]);
-        temp = 0;
-
-        for(j = 0; j < octet_len; j++){
-            temp = (temp * 10) + (ip_str[i][j] - '0');
-        }
-
-        ip->octets[i] = temp;
+        ip->octets[i] = str_to_uint(ip_str[i]);
     }
 
     return ip;
