@@ -69,6 +69,28 @@ struct ip_address* ip_string_to_struct(char ** ip_str){
     return ip;
 }
 
+int appearance_count_in_payload(char* payload, char* pattern, int payload_len, int pattern_len){
+    int i, j, flag, counter;
+    counter = 0;
+
+    for (i = 0; i <= payload_len - pattern_len; i++){
+        if(payload[i] == pattern[0]){
+            flag = 1;
+            for(j = 1; j < pattern_len; j++){
+                if(payload[i + j] != pattern[j]){
+                    flag = 0;
+                    break;
+                }
+            }
+            if(flag == 1){
+                counter++;
+            }
+        }
+    }
+    return counter;
+
+}
+
 void print_bin(unsigned char value)
 {
     int i;
