@@ -7,15 +7,18 @@
 #include <string.h>
 
 #include <libnetfilter_queue/libnetfilter_queue.h>
-// data + 12 -> first octet of source ip address
-// data + (length*4) -> first of UDP(first two bytes are src port)
-// data + (length*4) + 8 -> first byte of UPD data
-int *j_iter;
-int *j_input;
 
 struct ip_address{
     uint8_t octets [4];
 };
+
+uint16_t *current_j;
+uint16_t *input_j;
+uint16_t *input_port_number;
+char *pattern;
+struct ip_address *input_ip;
+
+
 
 uint8_t get_ip_header_length(unsigned char data){
     uint8_t hl = data & 0x0f;
@@ -99,6 +102,13 @@ void print_bin(unsigned char value)
     }
 }
 
+int match_rule(uint16_t *in_port, uint16_t packet_port,
+               struct ip_address *input_ip, struct ip_address *packet_ip, char *in_pattern, char *udp_payload)
+{
+
+
+}
+
 /* returns packet id */
 static u_int32_t print_pkt (struct nfq_data *tb)
 {
@@ -108,12 +118,13 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     u_int32_t mark,ifi;
     int ret;
     char *data;
+    char *udp_payload;
     int i;
     uint8_t header_len;
-    uint16_t *src_port;
+    uint16_t src_port;
+    uint16_t udp_len, udp_payload_len;
     struct ip_address ip;
 
-    (*j_iter)++;
     ph = nfq_get_msg_packet_hdr(tb);
 
     /*if (ph) {
@@ -152,26 +163,35 @@ static u_int32_t print_pkt (struct nfq_data *tb)
           printf("physoutdev=%u ", ifi);
 
     */
+
+
+
     ret = nfq_get_payload(tb, &data);
     //if (ret >= 0)
     //printf("payload_len=%d ", ret);
-
+    // data + 12 -> first octet of source ip address
     ip.octets[0] = data[12];
     ip.octets[1] = data[13];
     ip.octets[2] = data[14];
     ip.octets[3] = data[15];
-    header_len = get_ip_header_length(data[0]);
-    src_port = data + header_len * sizeof(char);
-    //printf("\nlen: %u", header_len);
-    printf("\nIP: %u.%u.%u.%u\nSource Port: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], ntohs(*src_port));
-    //printf("First char: %hhu\nFirst short: %hu\nFirst int: %hd\n", data, data, data);
-    /*printf("New Packet \n");
-    for(i = 0; i < ret; i++){
 
-          if (i == 20 || i == 21){
-                print_bin(data[i]);
-                printf("\n");}
-    }*/
+    // IP header length.
+    header_len = get_ip_header_length(data[0]);
+
+    // data + (header_len) -> begining of the UDP segment(first two bytes are src port)
+    src_port = ntohs(*((uint16_t*)(data + header_len * sizeof(char))));
+
+    // data + (header_len) + 4 -> size of the UDP segment
+    udp_len = ntohs(*((uint16_t*)(data + ((header_len + 4) * sizeof(char)))));
+
+    // the size of a udp header is 8 bytes.
+    udp_payload_len = udp_len - 8;
+
+    // data + (header_len) + 8 -> first byte of UPD payload
+    udp_payload = data + ((header_len + 8) * sizeof(char));
+
+
+    printf("\nIP: %u.%u.%u.%u\nSource Port: %u\nudplen: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], src_port, udp_len);
     fputc('\n', stdout);
 
     return id;
@@ -186,6 +206,26 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 
+void get_input(char *arg1, char *arg2, char *arg3, char *arg4){
+    char *input_ip_string;
+    char *port_string = arg2;
+    char *j_string = arg3;
+    pattern = arg4;
+    input_ip_string = arg1;
+
+    input_port_number = malloc(sizeof(uint16_t));
+    current_j = malloc(sizeof(uint16_t));
+
+    input_j = malloc(sizeof(uint16_t));  // maximum number of iteration, given by user
+    input_ip = malloc(sizeof(struct ip_address));
+    *input_j = str_to_uint(j_string);    // number of iterations
+
+    *current_j = 0;
+    *input_port_number = str_to_uint(port_string);
+    input_ip = ip_string_to_struct(ip_string_preprocess(input_ip_string));
+    return;
+}
+
 int main(int argc, char **argv)
 {
     struct nfq_handle *h;
@@ -195,15 +235,8 @@ int main(int argc, char **argv)
     int rv;
     char buf[4096] __attribute__ ((aligned));
     // command line arguments
-    char *ip_string = argv[1];
-    char *port_string = argv[2];
-    char *j_string = argv[3];
-    char *pattern = argv[4];
-    ///////
-    j_iter = malloc(sizeof(int));
-    j_input = malloc(sizeof(int));
-    *j_iter = 0;
 
+    get_input(argv[1], argv[2], argv[3], argv[4]);
     system("./add_rule.sh");
     printf("opening library handle\n");
     /* This function obtains a netfilter queue connection handle.
