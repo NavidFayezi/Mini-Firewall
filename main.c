@@ -102,16 +102,24 @@ void print_bin(unsigned char value)
     }
 }
 
-int match_rule(uint16_t *in_port, uint16_t packet_port,
-               struct ip_address *input_ip, struct ip_address *packet_ip, char *in_pattern, char *udp_payload)
+int match_rules(uint16_t in_port, uint16_t packet_port,
+                struct ip_address *input_ip, struct ip_address *packet_ip, char *in_pattern, char *udp_payload, int payload_len)
 {
+    if(packet_port == in_port && packet_ip->octets[0] == input_ip->octets[0] && packet_ip->octets[1] == input_ip->octets[1]
+       && packet_ip->octets[2] == input_ip->octets[2] && packet_ip->octets[3] == input_ip->octets[3]){
 
+        return appearance_count_in_payload(udp_payload, in_pattern, payload_len, strlen(in_pattern));
+    }
+    else{
+        return 0;
+    }
 
 }
 
 /* returns packet id */
 static u_int32_t print_pkt (struct nfq_data *tb)
 {
+    int matched; // if packet matches the rules, it holdes the number of appearance in the payload, otherwise = 0.
     int id = 0;
     struct nfqnl_msg_packet_hdr *ph;
     struct nfqnl_msg_packet_hw *hwph;
@@ -190,9 +198,16 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     // data + (header_len) + 8 -> first byte of UPD payload
     udp_payload = data + ((header_len + 8) * sizeof(char));
 
-
-    printf("\nIP: %u.%u.%u.%u\nSource Port: %u\nudplen: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], src_port, udp_len);
-    fputc('\n', stdout);
+    matched = match_rules(*input_port_number, src_port, input_ip, &ip, pattern, udp_payload, udp_payload_len);
+    if (matched){
+        printf("Payload: ");
+        for(i = 0; i < udp_payload_len; i++){
+            printf("%c", udp_payload[i]);
+        }
+        printf("\nAppearances: %d\n", matched);
+    }
+    //printf("\nIP: %u.%u.%u.%u\nSource Port: %u\nudplen: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], src_port, udp_len);
+    //fputc('\n', stdout);
 
     return id;
 }
