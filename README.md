@@ -1,6 +1,5 @@
 # Mini-Firewall
-In this assignment, I will be using the code snippet [here](https://www.netfilter.org/projects/libnetfilter_queue/doxygen/html/nfqnl__test_8c_source.html), which reads packets from the kernel queue and returns them after the processing is completed. The mini-firewall will inspect inbound UDP packets, and writes the information of the target packets to a file. Target packets are those whose **Source IP address** and **Source port** match the IP address and port number given by the user as inputs.
-
+In this assignment, I will be using the code snippet [here](https://www.netfilter.org/projects/libnetfilter_queue/doxygen/html/nfqnl__test_8c_source.html), which reads packets from the kernel. The mini-firewall will inspect inbound UDP packets, and filters the packets whose ip address and port number match the input given by user and contain the input string in their payload. The payload and the number of appearances of the input string of the packets that match these rules will be written to a `.txt` file. The program will stop after writing a certain number of packets, which is given by the user as an input `(argv[3])`.
 ## Compile and run
 Make sure that *libnetfilter_queue*, *libnfnetlink*, and *libmnl* are installed and the kernel version is 3.6 or later.  
 `sudo apt install libnetfilter-queue-dev`  
@@ -14,7 +13,8 @@ Next, make the shell scripts executable.
 After that, Link the library while compiling *main.c*.  
 `gcc main.c -lnetfilter_queue -o output`
 
-Finally, run the program. Do not forget *sudo*. Give an IP address, a port number, a number in range of [0 - 65535] as the number of iterations, and a string, all as the arguments for the main function. For example:  
+Finally, run the program. Give an IP address, a port number, a number in range of [0 - 65535] as the number of iterations, and a string, all as the arguments for the main function. Do not forget *sudo*. For example:  
+`sudo ./output ip port j string`  
 `sudo ./output 192.168.1.1 53 5 hello`
 
 ### Warning!
