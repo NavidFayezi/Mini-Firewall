@@ -14,7 +14,7 @@ Next, make the shell scripts executable.
 After that, Link the library while compiling *main.c*.  
 `gcc main.c -lnetfilter_queue -o output`
 
-Finally, run the program. Do not forget *sudo*. Give an IP address, a port number, a number in range of [0 - 65525] as the number of iterations, and a string. For example:  
+Finally, run the program. Do not forget *sudo*. Give an IP address, a port number, a number in range of [0 - 65535] as the number of iterations, and a string, all as the arguments for the main function. For example:  
 `sudo ./output 192.168.1.1 53 5 hello`
 
 ### Warning!
