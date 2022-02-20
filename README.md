@@ -14,7 +14,7 @@ After that, Link the library while compiling *main.c*.
 `gcc main.c -lnetfilter_queue -o output`
 
 Finally, run the program. Give an IP address, a port number, a number in range of [0 - 65535] as the number of iterations, and a string, all as the arguments for the main function. Do not forget *sudo*. For example:  
-`sudo ./output ip port j string`  
+`sudo ./output ip port i string`  
 `sudo ./output 192.168.1.1 53 5 hello`
 
 ### Warning!
