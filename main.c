@@ -19,7 +19,7 @@ struct packet_data
     uint16_t udp_payload_len;
 };
 
-// there was not any clear documention for "cb" function,
+// there was not any clear documentation for "cb" function,
 // that is why I had to declare these global variables instead of passing them to "cb".
 uint16_t *j_counter;
 uint16_t *input_i;
@@ -129,7 +129,6 @@ void save_packet_data(int appearance_no, char *upd_payload, uint16_t upd_payload
         for (i = 0; i < (int)upd_payload_len; i++){
             pckt->udp_payload[i] = upd_payload[i];
         }
-        //matched_packets [(*current_j)] = malloc(sizeof(struct packet_data));
         matched_packets [(*j_counter)] = pckt;
         (*j_counter)++;
     }
@@ -150,7 +149,6 @@ void write_to_file(){
             fprintf(output_file, "%c", matched_packets[i]->udp_payload[j]);
         }
         fprintf(output_file, "\nAppearances: %d\n", matched_packets[i]->appearance_number);
-
     }
     fclose(output_file);
 }
@@ -173,8 +171,6 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     struct ip_address ip;
 
     ph = nfq_get_msg_packet_hdr(tb);
-
-
     ret = nfq_get_payload(tb, &data);
 
     // data + 12 -> first octet of source ip address
@@ -186,7 +182,7 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     // IP header length.
     header_len = get_ip_header_length(data[0]);
 
-    // data + (header_len) -> begining of the UDP segment(first two bytes are src port)
+    // data + (header_len) -> beginning of the UDP segment(first two bytes are src port)
     src_port = ntohs(*((uint16_t*)(data + header_len * sizeof(char))));
 
     // data + (header_len) + 4 -> size of the UDP segment
@@ -200,19 +196,10 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
     matched = match_rules(*input_port_number, src_port, input_ip, &ip, pattern, udp_payload, udp_payload_len);
     if (matched){
-        /*printf("Payload: ");
-        for(i = 0; i < udp_payload_len; i++){
-            printf("%c", udp_payload[i]);
-        }
-        printf("\nAppearances: %d\n", matched);*/
         save_packet_data(matched, udp_payload, udp_payload_len);
     }
-    //printf("\nIP: %u.%u.%u.%u\nSource Port: %u\nudplen: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], src_port, udp_len);
-    //fputc('\n', stdout);
-
     return id;
 }
-
 
 static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
               struct nfq_data *nfa, void *data)
@@ -225,15 +212,14 @@ void get_input(char *arg1, char *arg2, char *arg3, char *arg4){
     char *input_ip_string;
     char *port_string = arg2;
     char *i_string = arg3;
+
     pattern = arg4;
     input_ip_string = arg1;
+
     input_port_number = malloc(sizeof(uint16_t));
     j_counter = malloc(sizeof(uint16_t));
-
     input_i = malloc(sizeof(uint16_t));  // maximum number of iteration, given by user
-    //input_ip = malloc(sizeof(struct ip_address));
     *input_i = str_to_uint(i_string);    // number of iterations
-
     matched_packets = malloc(sizeof(struct packet_data*) * (*input_i));
 
     *j_counter = 0;
@@ -244,19 +230,17 @@ void get_input(char *arg1, char *arg2, char *arg3, char *arg4){
 
 void free_heap(){
     int i;
-
     for(i = 0; i < *input_i; i++){
         free(matched_packets[i]->udp_payload);
         free(matched_packets[i]);
     }
-
     free(input_port_number);
     free(input_i);
     free(j_counter);
     free(input_ip);
     free(matched_packets);
-
 }
+
 int main(int argc, char **argv)
 {
     struct nfq_handle *h;
@@ -277,7 +261,6 @@ int main(int argc, char **argv)
     }
 
     printf("binding this socket to queue '0'\n");
-
     qh = nfq_create_queue(h,  0, &cb, NULL);
     if (!qh) {
         fprintf(stderr, "error during nfq_create_queue()\n");
@@ -291,7 +274,6 @@ int main(int argc, char **argv)
     }
 
     fd = nfq_fd(h);
-
     while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
 
         nfq_handle_packet(h, buf, rv);
@@ -300,7 +282,6 @@ int main(int argc, char **argv)
     }
 
     printf("unbinding from queue 0\n");
-
     nfq_destroy_queue(qh);
 
 #ifdef INSANE
