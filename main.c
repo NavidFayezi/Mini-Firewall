@@ -12,12 +12,20 @@ struct ip_address{
     uint8_t octets [4];
 };
 
+struct packet_data
+{
+    int recurrance_number;
+    char *udp_payload;
+    uint16_t udp_payload_len;
+};
+
+// there was not any clear documention for "cb" function, that is why I had to declare these global variables.
 uint16_t *current_j;
 uint16_t *input_j;
 uint16_t *input_port_number;
 char *pattern;
 struct ip_address *input_ip;
-
+struct packet_data **matched_packets;
 
 
 uint8_t get_ip_header_length(unsigned char data){
@@ -94,14 +102,6 @@ int appearance_count_in_payload(char* payload, char* pattern, int payload_len, i
 
 }
 
-void print_bin(unsigned char value)
-{
-    int i;
-    for (i = 0; i < 8; i++) {
-        printf("%d", !!((value << i) & 0x80));
-    }
-}
-
 int match_rules(uint16_t in_port, uint16_t packet_port,
                 struct ip_address *input_ip, struct ip_address *packet_ip, char *in_pattern, char *udp_payload, int payload_len)
 {
@@ -114,6 +114,38 @@ int match_rules(uint16_t in_port, uint16_t packet_port,
         return 0;
     }
 
+}
+
+void save_packet_data(int appearance_no, char *upd_payload, uint16_t upd_payload_len){
+    if(*current_j < *input_j){
+        int i;
+        struct packet_data *pckt = malloc(sizeof(struct packet_data));
+        pckt->recurrance_number = appearance_no;
+        pckt->udp_payload_len = upd_payload_len;
+        pckt->udp_payload = malloc(sizeof(char) * upd_payload_len);
+        // deep copy
+        for (i = 0; i < (int)upd_payload_len; i++){
+            pckt->udp_payload[i] = upd_payload[i];
+        }
+        matched_packets [(*current_j)] = malloc(sizeof(struct packet_data));
+        matched_packets [(*current_j)] = pckt;
+        (*current_j)++;
+    }
+}
+
+void write_to_file(){
+    int i, j;
+    FILE *output_file = fopen("out.txt", "w");
+
+    for(i = 0; i < *input_j; i++){
+        fprintf(output_file, "Payload: ");
+        for(j = 0; j < matched_packets[i]->udp_payload_len; j++){
+            fprintf(output_file, "%c", matched_packets[i]->udp_payload[j]);
+        }
+        fprintf(output_file, "\nAppearances: %d\n", matched_packets[i]->recurrance_number);
+
+    }
+    fclose(output_file);
 }
 
 /* returns packet id */
@@ -135,48 +167,9 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
     ph = nfq_get_msg_packet_hdr(tb);
 
-    /*if (ph) {
-          id = ntohl(ph->packet_id);
-          printf("hw_protocol=0x%04x hook=%u id=%u ",
-                ntohs(ph->hw_protocol), ph->hook, id);
-    }
-
-    hwph = nfq_get_packet_hw(tb);
-    if (hwph) {
-          int i, hlen = ntohs(hwph->hw_addrlen);
-
-          printf("hw_src_addr=");
-          for (i = 0; i < hlen-1; i++)
-                printf("%02x:", hwph->hw_addr[i]);
-          printf("%02x ", hwph->hw_addr[hlen-1]);
-    }
-
-    mark = nfq_get_nfmark(tb);
-    if (mark)
-          printf("mark=%u ", mark);
-
-    ifi = nfq_get_indev(tb);
-    if (ifi)
-          printf("indev=%u ", ifi);
-
-    ifi = nfq_get_outdev(tb);
-    if (ifi)
-          printf("outdev=%u ", ifi);
-    ifi = nfq_get_physindev(tb);
-    if (ifi)
-          printf("physindev=%u ", ifi);
-
-    ifi = nfq_get_physoutdev(tb);
-    if (ifi)
-          printf("physoutdev=%u ", ifi);
-
-    */
-
-
 
     ret = nfq_get_payload(tb, &data);
-    //if (ret >= 0)
-    //printf("payload_len=%d ", ret);
+
     // data + 12 -> first octet of source ip address
     ip.octets[0] = data[12];
     ip.octets[1] = data[13];
@@ -200,11 +193,12 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 
     matched = match_rules(*input_port_number, src_port, input_ip, &ip, pattern, udp_payload, udp_payload_len);
     if (matched){
-        printf("Payload: ");
+        /*printf("Payload: ");
         for(i = 0; i < udp_payload_len; i++){
             printf("%c", udp_payload[i]);
         }
-        printf("\nAppearances: %d\n", matched);
+        printf("\nAppearances: %d\n", matched);*/
+        save_packet_data(matched, udp_payload, udp_payload_len);
     }
     //printf("\nIP: %u.%u.%u.%u\nSource Port: %u\nudplen: %u\n", ip.octets[0], ip.octets[1], ip.octets[2], ip.octets[3], src_port, udp_len);
     //fputc('\n', stdout);
@@ -217,7 +211,6 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
               struct nfq_data *nfa, void *data)
 {
     u_int32_t id = print_pkt(nfa);
-    //printf("entering callback\n");
     return nfq_set_verdict(qh, id, NF_ACCEPT, 0, NULL);
 }
 
@@ -227,13 +220,14 @@ void get_input(char *arg1, char *arg2, char *arg3, char *arg4){
     char *j_string = arg3;
     pattern = arg4;
     input_ip_string = arg1;
-
     input_port_number = malloc(sizeof(uint16_t));
     current_j = malloc(sizeof(uint16_t));
 
     input_j = malloc(sizeof(uint16_t));  // maximum number of iteration, given by user
     input_ip = malloc(sizeof(struct ip_address));
     *input_j = str_to_uint(j_string);    // number of iterations
+
+    matched_packets = malloc(sizeof(struct packet_data*) * (*input_j));
 
     *current_j = 0;
     *input_port_number = str_to_uint(port_string);
@@ -250,16 +244,10 @@ int main(int argc, char **argv)
     int rv;
     char buf[4096] __attribute__ ((aligned));
     // command line arguments
-
     get_input(argv[1], argv[2], argv[3], argv[4]);
     system("./add_rule.sh");
     printf("opening library handle\n");
-    /* This function obtains a netfilter queue connection handle.
-       When you are finished with the handle returned by this function,
-       you should destroy it by calling nfq_close(). A new netlink connection
-       is obtained internally and associated with the queue connection handle returned.
-       Returns a pointer to a new queue handle or NULL on failure.
-    */
+
     h = nfq_open();
     if (!h) {
         fprintf(stderr, "error during nfq_open()\n");
@@ -267,92 +255,32 @@ int main(int argc, char **argv)
     }
 
     printf("unbinding existing nf_queue handler for AF_INET (if any)\n");
-    /* Bind a nfqueue handler to a given protocol family.
-       First parameter: Netfilter queue connection handle
-       obtained via call to nfq_open().
-       Second parameter: Protocol family. IPv4
-    */
-    /* obsolete
-    if (nfq_unbind_pf(h, AF_INET) < 0) {
-          fprintf(stderr, "error during nfq_unbind_pf()\n");
-          exit(1);
-    }
-
-    printf("binding nfnetlink_queue as nf_queue handler for AF_INET\n");
-    if (nfq_bind_pf(h, AF_INET) < 0) {
-          fprintf(stderr, "error during nfq_bind_pf()\n");
-          exit(1);
-    }*/
 
     printf("binding this socket to queue '0'\n");
-    /* create a new queue handle and return it.
-       Parameters: Netfilter queue connection handle obtained
-       via call tonfq_open().
-       The number of the queue to bind to.
-       Callback function to call for each queued packet.
-       Custom data to pass to the callback function.
-       Returns a nfq_q_handle pointing to the newly created queue.
 
-    */
     qh = nfq_create_queue(h,  0, &cb, NULL);
     if (!qh) {
         fprintf(stderr, "error during nfq_create_queue()\n");
         exit(1);
     }
-    /* set the amount of packet data that nfqueue copies to userspace
-       Parameters:
-       Netfilter queue handle obtained by call to nfq_create_queue().
-       the part of the packet that we are interested in
-       size of the packet that we want to get
-       Sets the amount of data to be copied to userspace for each packet queued to the given queue.
-       NFQNL_COPY_NONE - noop, do not use it
-       NFQNL_COPY_META - copy only packet metadata
-       NFQNL_COPY_PACKET - copy entire packet
-       Returns:
-       -1 on error; >=0 otherwise.
-    */
+
     printf("setting copy_packet mode\n");
     if (nfq_set_mode(qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
         fprintf(stderr, "can't set packet_copy mode\n");
         exit(1);
     }
-    /* get the file descriptor associated with the nfqueue handler
-       Parameters:
-       Netfilter queue connection handle obtained via call to nfq_open().
-       Returns:
-       a file descriptor for the netlink connection associated with
-       the given queue connection handle. The file descriptor can
-       then be used for receiving the queued packets for processing.
-       This function returns a file descriptor that can be used for
-       communication over the netlink connection associated with the given queue connection handl
-    */
+
     fd = nfq_fd(h);
 
     while ((rv = recv(fd, buf, sizeof(buf), 0)) && rv >= 0) {
-        //printf("pkt received\n");
-        /* handle a packet received from the nfqueue subsystem
-           Parameters:
-           Netfilter queue connection handle obtained via call to nfq_open()
-           data to pass to the callback
-           length of packet data in buffer
-           Triggers an associated callback for the given packet received from the queue.
-           Packets can be read from the queue using nfq_fd() and recv(). See example code for nfq_fd().
-           Returns:
-           0 on success, non-zero on failure
-        */
-        nfq_handle_packet(h, buf, rv);
-        /*if (*j_iter >= *j_input)
-              break;*/
 
+        nfq_handle_packet(h, buf, rv);
+        if(*current_j >= *input_j)
+            break;
     }
 
     printf("unbinding from queue 0\n");
-    /* destroy a queue handle
-       Parameters:
-       queue handle that we want to destroy created via nfq_create_queue
-       Removes the binding for the specified queue handle.
-       This call also unbind from the nfqueue handler, so you don't have to call nfq_unbind_pf
-    */
+
     nfq_destroy_queue(qh);
 
 #ifdef INSANE
@@ -363,9 +291,8 @@ int main(int argc, char **argv)
 #endif
 
     printf("closing library handle\n");
-    nfq_close(h);     // close nfque handler and free its associated resources.
-    // return zero on success, non-zero on failure.
+    nfq_close(h);
+    write_to_file();
     system("./delete_rule.sh");
-    //printf("%d\n", *j_iter);
     exit(0);
 }
