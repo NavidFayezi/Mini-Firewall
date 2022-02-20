@@ -19,7 +19,8 @@ struct packet_data
     uint16_t udp_payload_len;
 };
 
-// there was not any clear documention for "cb" function, that is why I had to declare these global variables.
+// there was not any clear documention for "cb" function,
+// that is why I had to declare these global variables instead of passing them to "cb".
 uint16_t *current_j;
 uint16_t *input_j;
 uint16_t *input_port_number;
@@ -75,8 +76,9 @@ struct ip_address* ip_string_to_struct(char ** ip_str){
 
     for (i = 0; i < 4; i++){
         ip->octets[i] = str_to_uint(ip_str[i]);
+        free(ip_str[i]);
     }
-
+    free(ip_str);
     return ip;
 }
 
@@ -127,7 +129,7 @@ void save_packet_data(int appearance_no, char *upd_payload, uint16_t upd_payload
         for (i = 0; i < (int)upd_payload_len; i++){
             pckt->udp_payload[i] = upd_payload[i];
         }
-        matched_packets [(*current_j)] = malloc(sizeof(struct packet_data));
+        //matched_packets [(*current_j)] = malloc(sizeof(struct packet_data));
         matched_packets [(*current_j)] = pckt;
         (*current_j)++;
     }
@@ -224,7 +226,7 @@ void get_input(char *arg1, char *arg2, char *arg3, char *arg4){
     current_j = malloc(sizeof(uint16_t));
 
     input_j = malloc(sizeof(uint16_t));  // maximum number of iteration, given by user
-    input_ip = malloc(sizeof(struct ip_address));
+    //input_ip = malloc(sizeof(struct ip_address));
     *input_j = str_to_uint(j_string);    // number of iterations
 
     matched_packets = malloc(sizeof(struct packet_data*) * (*input_j));
@@ -235,6 +237,21 @@ void get_input(char *arg1, char *arg2, char *arg3, char *arg4){
     return;
 }
 
+void free_heap(){
+    int i;
+
+    for(i = 0; i < *input_j; i++){
+        free(matched_packets[i]->udp_payload);
+        free(matched_packets[i]);
+    }
+
+    free(input_port_number);
+    free(input_j);
+    free(current_j);
+    free(input_ip);
+    free(matched_packets);
+
+}
 int main(int argc, char **argv)
 {
     struct nfq_handle *h;
@@ -253,8 +270,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "error during nfq_open()\n");
         exit(1);
     }
-
-    printf("unbinding existing nf_queue handler for AF_INET (if any)\n");
 
     printf("binding this socket to queue '0'\n");
 
@@ -294,5 +309,6 @@ int main(int argc, char **argv)
     nfq_close(h);
     write_to_file();
     system("./delete_rule.sh");
+    free_heap();
     exit(0);
 }
