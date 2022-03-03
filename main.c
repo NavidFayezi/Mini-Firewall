@@ -171,6 +171,7 @@ static u_int32_t print_pkt (struct nfq_data *tb)
     struct ip_address ip;
 
     ph = nfq_get_msg_packet_hdr(tb);
+    id = ntohl(ph->packet_id);
     ret = nfq_get_payload(tb, &data);
 
     // data + 12 -> first octet of source ip address
